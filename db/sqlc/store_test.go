@@ -2,13 +2,12 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestTransferTx(t *testing.T){
+func TestTransferTx(t *testing.T) {
 	store := NewStore(testDB)
 
 	account1 := CreateRandomAccount(t)
@@ -26,10 +25,10 @@ func TestTransferTx(t *testing.T){
 
 	for i := 0; i < n; i++ {
 		go func() {
-			result , err := store.TransferTx(context.Background(), TransferTxParams{
+			result, err := store.TransferTx(context.Background(), TransferTxParams{
 				FromAccountID: account1.ID,
-				ToAccountID: account2.ID,
-				Amount: amount,
+				ToAccountID:   account2.ID,
+				Amount:        amount,
 			})
 
 			require.NotEmpty(t, result)
@@ -42,10 +41,10 @@ func TestTransferTx(t *testing.T){
 
 	// check errors in the error channel to be null
 	for i := 0; i < n; i++ {
-		err := <- errs
+		err := <-errs
 		require.NoError(t, err)
 
-		result := <- results
+		result := <-results
 		require.NotEmpty(t, result)
 
 		//check Transfer
@@ -76,6 +75,7 @@ func TestTransferTx(t *testing.T){
 		require.Equal(t, amount, toEntry.Amount)
 		require.NotZero(t, toEntry.ID)
 		require.NotZero(t, toEntry.CreatedAt)
+
 		_, err = store.GetEntry(context.Background(), toEntry.ID)
 		require.NoError(t, err)
 	}
@@ -89,17 +89,40 @@ func TestTransferTxWithoutGoRoutine(t *testing.T) {
 
 	amount := int64(10)
 
-	result , err := store.TransferTx(context.Background(), TransferTxParams{
+	result, err := store.TransferTx(context.Background(), TransferTxParams{
 		FromAccountID: account1.ID,
-		ToAccountID: account2.ID,
-		Amount: amount,
+		ToAccountID:   account2.ID,
+		Amount:        amount,
 	})
 
 	if err != nil {
-		return 
+		return
 	}
 
-	fmt.Printf("%+v\n", result)
+	transfer := result.Transfer
 
+	require.NotEmpty(t, transfer)
+	require.Equal(t, account1.ID, transfer.FromAccountID)
+	require.Equal(t, account2.ID, transfer.ToAccountID)
+	require.NotZero(t, transfer.ID)
+	require.NotZero(t, transfer.CreatedAt)
 
+	fromEntry := result.FromEntry
+	require.NotEmpty(t, fromEntry)
+	require.Equal(t, account1.ID, fromEntry.AccountID)
+	require.Equal(t, -amount, fromEntry.Amount)
+	require.NotZero(t, fromEntry.ID)
+	require.NotZero(t, fromEntry.CreatedAt)
+	_, err = store.GetEntry(context.Background(), fromEntry.ID)
+	require.NoError(t, err)
+
+	toEntry := result.ToEntry
+	require.NotEmpty(t, toEntry)
+	require.Equal(t, account2.ID, toEntry.AccountID)
+	require.Equal(t, amount, toEntry.Amount)
+	require.NotZero(t, toEntry.ID)
+	require.NotZero(t, toEntry.CreatedAt)
+
+	_, err = store.GetEntry(context.Background(), toEntry.ID)
+	require.NoError(t, err)
 }
