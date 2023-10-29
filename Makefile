@@ -4,6 +4,9 @@ postgres:
 createdb:
 	docker exec -it postgres12 createdb --username=root --owner=root bank
 
+psql:
+	docker exec -it postgres12 psql -U root -d bank
+
 dropdb:
 	docker exec -it postgres12 dropdb bank
 
