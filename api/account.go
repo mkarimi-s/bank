@@ -8,7 +8,6 @@ import (
 	db "github.com/mkarimi-s/bank/db/sqlc"
 )
 
-
 type CreateAccountRequest struct {
 	Owner    string `json:"owner" binding:"required"`
 	Currency string `json:"currency" binding:"required,oneof=USD EUR"`
@@ -23,9 +22,9 @@ func (server *Server) createAccount(ctx *gin.Context) {
 	}
 
 	arg := db.CreateAccountParams{
-		Owner: req.Owner,
+		Owner:    req.Owner,
 		Currency: req.Currency,
-		Balance: 0,
+		Balance:  0,
 	}
 
 	account, err := server.store.CreateAccount(ctx, arg)
@@ -34,11 +33,11 @@ func (server *Server) createAccount(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, account)
+	ctx.JSON(http.StatusCreated, successResponse(account))
 }
 
-type GetAccountRequest struct{
-	ID	int64 `uri:"id" binding:"required,min=1"`
+type GetAccountRequest struct {
+	ID int64 `uri:"id" binding:"required,min=1"`
 }
 
 func (server *Server) getAccount(ctx *gin.Context) {
@@ -54,12 +53,35 @@ func (server *Server) getAccount(ctx *gin.Context) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
-		}else {
+		} else {
 			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		}
 		return
 	}
 
-	ctx.JSON(http.StatusOK, account)
+	ctx.JSON(http.StatusOK, successResponse(account))
 
+}
+
+type GetAccountListRequest struct {
+	PageID   int32 `form:"page_id" binding:"required"`
+	PageSize int32 `form:"page_size" binding:"required"`
+}
+
+func (server *Server) getAccountList(ctx *gin.Context) {
+	var req GetAccountListRequest
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+	}
+
+	accounts, err := server.store.ListAccounts(ctx, db.ListAccountsParams{
+		Limit: req.PageSize,
+		Offset: (req.PageID - 1) * req.PageSize,
+	})
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+	}
+
+	ctx.JSON(http.StatusOK, successResponse(accounts))
 }
